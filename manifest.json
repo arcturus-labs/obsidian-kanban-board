@@ -1,6 +1,6 @@
 {
-  "id": "rook-todos-board",
-  "name": "Rook Todos Board",
+  "id": "obsidian-todos-extension",
+  "name": "Obsidian Todos Extension",
   "version": "0.0.1",
   "minAppVersion": "1.6.0",
   "description": "React-based kanban board for todo notes in the ToDos folder.",

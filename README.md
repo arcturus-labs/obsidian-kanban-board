@@ -1,4 +1,4 @@
-# Rook Todos Board
+# Obsidian Todos Extension
 
 A React-based kanban board Obsidian plugin for managing todo notes stored as markdown files in a folder.
 
@@ -19,8 +19,8 @@ A React-based kanban board Obsidian plugin for managing todo notes stored as mar
 
 ```bash
 cd /path/to/your/vault/.obsidian/plugins
-git clone https://github.com/the-rooks-nest/obsidian-rook-todos-board.git
-cd obsidian-rook-todos-board
+git clone https://github.com/the-rooks-nest/obsidian-todos-extension.git
+cd obsidian-todos-extension
 npm install
 npm run build
 ```
@@ -29,7 +29,7 @@ Then enable the plugin in Obsidian's Community Plugins settings.
 
 ### Manual
 
-Download the latest release and extract into `<vault>/.obsidian/plugins/rook-todos-board/`.
+Download the latest release and extract into `<vault>/.obsidian/plugins/obsidian-todos-extension/`.
 
 ## Usage
 
