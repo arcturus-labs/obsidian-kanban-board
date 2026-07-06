@@ -1,0 +1,10 @@
+{
+  "id": "rook-todos-board",
+  "name": "Rook Todos Board",
+  "version": "0.0.1",
+  "minAppVersion": "1.6.0",
+  "description": "React-based kanban board for todo notes in the ToDos folder.",
+  "author": "The Rook's Nest",
+  "authorUrl": "https://github.com/the-rooks-nest",
+  "isDesktopOnly": false
+}
