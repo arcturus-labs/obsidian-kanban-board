@@ -2,15 +2,15 @@ import { App, ItemView, Notice, Plugin, PluginSettingTab, Setting, TFile, Worksp
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
-const VIEW_TYPE_ROOK_TODOS = 'rook-todos-board-view';
-const DEFAULT_STATUSES = ['todo', 'in_progress', 'done'] as const;
+const VIEW_TYPE_ROOK_KANBAN = 'rook-kanban-board-view';
+const DEFAULT_STATUSES = ['backlog', 'in_progress', 'done'] as const;
 
-type TodoStatus = (typeof DEFAULT_STATUSES)[number] | string;
+type TaskStatus = (typeof DEFAULT_STATUSES)[number] | string;
 
-type TodoItem = {
+type TaskItem = {
   file: TFile;
   title: string;
-  status: TodoStatus;
+  status: TaskStatus;
   order?: number;
   created?: string;
   touched?: string;
@@ -26,7 +26,7 @@ type DropLocation = {
 };
 
 type PluginSettings = {
-  todosFolder: string;
+  tasksFolder: string;
   statuses?: string[];
 };
 
@@ -34,14 +34,14 @@ type StatusConfig = {
   statuses: string[];
 };
 
-type CreateTodoInput = {
+type CreateTaskInput = {
   title: string;
   description?: string;
   tags?: string[];
   status?: string;
 };
 
-type TodoDraft = {
+type TaskDraft = {
   title: string;
   description: string;
   tags: string;
@@ -49,14 +49,14 @@ type TodoDraft = {
 };
 
 const DEFAULT_SETTINGS: PluginSettings = {
-  todosFolder: 'ToDos',
+  tasksFolder: 'Tasks',
   statuses: [...DEFAULT_STATUSES]
 };
 
 const STATUS_CONFIG_FILE = 'status-config.json';
 const DEFAULT_ORDER_STEP = 1000;
 
-export default class RookTodosBoardPlugin extends Plugin {
+export default class RookKanbanBoardPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   statuses: string[] = [...DEFAULT_STATUSES];
 
@@ -64,19 +64,19 @@ export default class RookTodosBoardPlugin extends Plugin {
     await this.loadSettings();
     await this.loadStatuses();
 
-    this.registerView(VIEW_TYPE_ROOK_TODOS, (leaf) => new RookTodosBoardView(leaf, this));
+    this.registerView(VIEW_TYPE_ROOK_KANBAN, (leaf) => new RookKanbanBoardView(leaf, this));
 
     this.addCommand({
-      id: 'open-rook-todos-board',
-      name: 'Open Rook Todos Board',
+      id: 'open-rook-tasks-board',
+      name: 'Open Rook Kanban Board',
       callback: () => this.activateView()
     });
 
-    this.addRibbonIcon('kanban-square', 'Open Rook Todos Board', async () => {
+    this.addRibbonIcon('kanban-square', 'Open Rook Kanban Board', async () => {
       await this.activateView();
     });
 
-    this.addSettingTab(new RookTodosSettingTab(this.app, this));
+    this.addSettingTab(new RookTasksSettingTab(this.app, this));
     this.registerEvent(this.app.metadataCache.on('changed', () => this.refreshViews()));
     this.registerEvent(this.app.vault.on('create', () => this.refreshViews()));
     this.registerEvent(this.app.vault.on('modify', () => this.refreshViews()));
@@ -84,7 +84,7 @@ export default class RookTodosBoardPlugin extends Plugin {
   }
 
   onunload() {
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_ROOK_TODOS);
+    this.app.workspace.detachLeavesOfType(VIEW_TYPE_ROOK_KANBAN);
   }
 
   async loadSettings() {
@@ -146,26 +146,36 @@ export default class RookTodosBoardPlugin extends Plugin {
 
   async activateView() {
     const { workspace } = this.app;
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_ROOK_TODOS)[0];
+    let leaf = workspace.getLeavesOfType(VIEW_TYPE_ROOK_KANBAN)[0];
 
     if (!leaf) {
       leaf = workspace.getLeaf(true);
-      await leaf.setViewState({ type: VIEW_TYPE_ROOK_TODOS, active: true });
+      await leaf.setViewState({ type: VIEW_TYPE_ROOK_KANBAN, active: true });
     }
 
     workspace.revealLeaf(leaf);
   }
 
   refreshViews() {
-    this.app.workspace.getLeavesOfType(VIEW_TYPE_ROOK_TODOS).forEach((leaf) => {
+    this.app.workspace.getLeavesOfType(VIEW_TYPE_ROOK_KANBAN).forEach((leaf) => {
       const view = leaf.view;
-      if (view instanceof RookTodosBoardView) {
+      if (view instanceof RookKanbanBoardView) {
         view.renderBoard();
       }
     });
   }
 
-  async getTodoFrontmatter(file: TFile): Promise<Record<string, unknown>> {
+  getTasksFolder(): string {
+    const configuredFolder = this.settings.tasksFolder.replace(/\/$/, '');
+    if (this.app.vault.getAbstractFileByPath(configuredFolder)) return configuredFolder;
+
+    // THIS IS FOR BACKWARDS COMPATIBILITY: keep existing vaults using the former default folder visible after the rename.
+    if (configuredFolder === 'Tasks' && this.app.vault.getAbstractFileByPath('ToDos')) return 'ToDos';
+
+    return configuredFolder;
+  }
+
+  async getTaskFrontmatter(file: TFile): Promise<Record<string, unknown>> {
     const cache = this.app.metadataCache.getFileCache(file);
     if (cache?.frontmatter) return cache.frontmatter as Record<string, unknown>;
 
@@ -181,31 +191,31 @@ export default class RookTodosBoardPlugin extends Plugin {
     }
   }
 
-  async getTodos(normalizeBoardOrder = true): Promise<TodoItem[]> {
-    const folderPrefix = `${this.settings.todosFolder.replace(/\/$/, '')}/`;
+  async getTasks(normalizeBoardOrder = true): Promise<TaskItem[]> {
+    const folderPrefix = `${this.getTasksFolder().replace(/\/$/, '')}/`;
     const files = this.app.vault
       .getMarkdownFiles()
       .filter((file) => file.path.startsWith(folderPrefix) && !file.basename.startsWith('_'));
 
-    const todos = await Promise.all(
+    const tasks = await Promise.all(
       files.map(async (file) => {
-        const frontmatter = await this.getTodoFrontmatter(file);
+        const frontmatter = await this.getTaskFrontmatter(file);
 
         return {
           file,
           title: file.basename,
-          status: normalizeStatusValue(String(frontmatter.status ?? this.statuses[0] ?? 'todo')),
+          status: normalizeStatusValue(String(frontmatter.status ?? this.statuses[0] ?? 'backlog')),
           order: normalizeOrder(frontmatter.board_order),
           created: frontmatter.created ? String(frontmatter.created) : undefined,
           touched: frontmatter.touched ? String(frontmatter.touched) : formatDate(file.stat.mtime),
           sourceIssue: frontmatter.source_issue ? String(frontmatter.source_issue) : undefined,
           tags: buildImplicitTags(file, normalizeTags(frontmatter.tags)),
           statusHistory: normalizeHistory(frontmatter.status_history)
-        } satisfies TodoItem;
+        } satisfies TaskItem;
       })
     );
 
-    const discoveredStatuses = Array.from(new Set(todos.map((todo) => todo.status)));
+    const discoveredStatuses = Array.from(new Set(tasks.map((task) => task.status)));
     const unknownStatuses = discoveredStatuses.filter((status) => !this.statuses.includes(status));
 
     if (unknownStatuses.length) {
@@ -213,44 +223,44 @@ export default class RookTodosBoardPlugin extends Plugin {
     }
 
     if (normalizeBoardOrder) {
-      const statusesMissingOrder = Array.from(new Set(todos.filter((todo) => todo.order == null).map((todo) => todo.status)));
+      const statusesMissingOrder = Array.from(new Set(tasks.filter((task) => task.order == null).map((task) => task.status)));
       if (statusesMissingOrder.length) {
         for (const status of statusesMissingOrder) {
-          const items = todos.filter((todo) => todo.status === status).sort(compareTodos);
+          const items = tasks.filter((task) => task.status === status).sort(compareTasks);
           await this.rebalanceStatus(status, items);
         }
-        return this.getTodos(false);
+        return this.getTasks(false);
       }
     }
 
-    return todos.sort(compareTodos);
+    return tasks.sort(compareTasks);
   }
 
-  async moveTodo(file: TFile, destination: DropLocation) {
+  async moveTask(file: TFile, destination: DropLocation) {
     const normalizedNextStatus = normalizeStatusValue(destination.status);
     await this.ensureStatusExists(normalizedNextStatus, 'left');
 
-    const todos = await this.getTodos();
-    const currentTodo = todos.find((todo) => todo.file.path === file.path);
-    if (!currentTodo) return;
+    const tasks = await this.getTasks();
+    const currentTask = tasks.find((task) => task.file.path === file.path);
+    if (!currentTask) return;
 
-    const targetColumn = todos
-      .filter((todo) => todo.status === normalizedNextStatus && todo.file.path !== file.path)
-      .sort(compareTodos);
+    const targetColumn = tasks
+      .filter((task) => task.status === normalizedNextStatus && task.file.path !== file.path)
+      .sort(compareTasks);
 
-    const previousTodo = destination.previousPath ? targetColumn.find((todo) => todo.file.path === destination.previousPath) : undefined;
-    const nextTodo = destination.nextPath ? targetColumn.find((todo) => todo.file.path === destination.nextPath) : undefined;
+    const previousTask = destination.previousPath ? targetColumn.find((task) => task.file.path === destination.previousPath) : undefined;
+    const nextTask = destination.nextPath ? targetColumn.find((task) => task.file.path === destination.nextPath) : undefined;
 
-    const currentStatus = normalizeStatusValue(currentTodo.status);
-    const currentColumn = todos.filter((todo) => todo.status === currentStatus).sort(compareTodos);
-    const currentIndex = currentColumn.findIndex((todo) => todo.file.path === file.path);
+    const currentStatus = normalizeStatusValue(currentTask.status);
+    const currentColumn = tasks.filter((task) => task.status === currentStatus).sort(compareTasks);
+    const currentIndex = currentColumn.findIndex((task) => task.file.path === file.path);
     const currentPreviousPath = currentColumn[currentIndex - 1]?.file.path;
     const currentNextPath = currentColumn[currentIndex + 1]?.file.path;
 
-    const insertIndex = nextTodo
-      ? targetColumn.findIndex((todo) => todo.file.path === nextTodo.file.path)
-      : previousTodo
-        ? targetColumn.findIndex((todo) => todo.file.path === previousTodo.file.path) + 1
+    const insertIndex = nextTask
+      ? targetColumn.findIndex((task) => task.file.path === nextTask.file.path)
+      : previousTask
+        ? targetColumn.findIndex((task) => task.file.path === previousTask.file.path) + 1
         : targetColumn.length;
 
     if (
@@ -265,24 +275,24 @@ export default class RookTodosBoardPlugin extends Plugin {
       return;
     }
 
-    let nextOrder = getInsertedOrder(previousTodo?.order, nextTodo?.order);
+    let nextOrder = getInsertedOrder(previousTask?.order, nextTask?.order);
     if (nextOrder == null) {
       await this.rebalanceStatus(normalizedNextStatus, targetColumn);
-      const reloadedTodos = await this.getTodos();
-      const reloadedTargetColumn = reloadedTodos
-        .filter((todo) => todo.status === normalizedNextStatus && todo.file.path !== file.path)
-        .sort(compareTodos);
-      const reloadedPreviousTodo = destination.previousPath
-        ? reloadedTargetColumn.find((todo) => todo.file.path === destination.previousPath)
+      const reloadedTasks = await this.getTasks();
+      const reloadedTargetColumn = reloadedTasks
+        .filter((task) => task.status === normalizedNextStatus && task.file.path !== file.path)
+        .sort(compareTasks);
+      const reloadedPreviousTask = destination.previousPath
+        ? reloadedTargetColumn.find((task) => task.file.path === destination.previousPath)
         : undefined;
-      const reloadedNextTodo = destination.nextPath
-        ? reloadedTargetColumn.find((todo) => todo.file.path === destination.nextPath)
+      const reloadedNextTask = destination.nextPath
+        ? reloadedTargetColumn.find((task) => task.file.path === destination.nextPath)
         : undefined;
-      nextOrder = getInsertedOrder(reloadedPreviousTodo?.order, reloadedNextTodo?.order) ?? DEFAULT_ORDER_STEP;
+      nextOrder = getInsertedOrder(reloadedPreviousTask?.order, reloadedNextTask?.order) ?? DEFAULT_ORDER_STEP;
     }
 
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      frontmatter.type = 'todo';
+      frontmatter.type = 'task';
       frontmatter.board_order = nextOrder;
       const existingStatus = normalizeStatusValue(String(frontmatter.status ?? 'triage'));
 
@@ -303,73 +313,73 @@ export default class RookTodosBoardPlugin extends Plugin {
     this.refreshViews();
   }
 
-  async rebalanceStatus(status: string, items?: TodoItem[]) {
-    const columnItems = (items ?? (await this.getTodos()).filter((todo) => todo.status === status)).sort(compareTodos);
+  async rebalanceStatus(status: string, items?: TaskItem[]) {
+    const columnItems = (items ?? (await this.getTasks()).filter((task) => task.status === status)).sort(compareTasks);
     await Promise.all(
-      columnItems.map((todo, index) =>
-        this.app.fileManager.processFrontMatter(todo.file, (frontmatter) => {
+      columnItems.map((task, index) =>
+        this.app.fileManager.processFrontMatter(task.file, (frontmatter) => {
           frontmatter.board_order = (index + 1) * DEFAULT_ORDER_STEP;
         })
       )
     );
   }
 
-  async createTodo(input: CreateTodoInput) {
+  async createTask(input: CreateTaskInput) {
     const title = input.title.trim();
     if (!title) return;
 
-    const status = normalizeStatusValue(input.status ?? this.statuses[0] ?? 'todo');
+    const status = normalizeStatusValue(input.status ?? this.statuses[0] ?? 'backlog');
     await this.ensureStatusExists(status, 'left');
 
     const safeTitle = sanitizeFileName(title);
-    const folder = this.settings.todosFolder.replace(/\/$/, '');
+    const folder = this.getTasksFolder().replace(/\/$/, '');
     const path = `${folder}/${safeTitle}.md`;
 
     if (this.app.vault.getAbstractFileByPath(path)) {
-      new Notice(`Todo already exists: ${safeTitle}`);
+      new Notice(`Task already exists: ${safeTitle}`);
       return;
     }
 
-    const order = await this.getNextOrderForStatus(status);
+    const order = await this.getFirstOrderForStatus(status);
     const today = todayString();
     const tags = normalizeCreateTags(input.tags);
     const body = input.description?.trim() ? input.description.trim() : '- Define the outcome.\n- Add the next concrete step.';
     const tagsSection = tags.length ? `tags:\n${tags.map((tag) => `  - ${tag}`).join('\n')}` : 'tags: []';
-    const content = `---\ntype: todo\nstatus: ${status}\nboard_order: ${order}\ncreated: ${today}\ntouched: ${today}\nsource_issue:\n${tagsSection}\nstatus_history:\n  - \"${today} | created -> ${status}\"\n---\n\n${body}\n`;
+    const content = `---\ntype: task\nstatus: ${status}\nboard_order: ${order}\ncreated: ${today}\ntouched: ${today}\nsource_issue:\n${tagsSection}\nstatus_history:\n  - \"${today} | created -> ${status}\"\n---\n\n${body}\n`;
 
     await this.app.vault.create(path, content);
     new Notice(`Created ${safeTitle}`);
     this.refreshViews();
   }
 
-  async getNextOrderForStatus(status: string) {
-    const items = (await this.getTodos()).filter((todo) => todo.status === status).sort(compareTodos);
-    const lastOrder = items[items.length - 1]?.order;
-    return lastOrder != null ? lastOrder + DEFAULT_ORDER_STEP : DEFAULT_ORDER_STEP;
+  async getFirstOrderForStatus(status: string) {
+    const items = (await this.getTasks()).filter((task) => task.status === status).sort(compareTasks);
+    const firstOrder = items[0]?.order;
+    return firstOrder != null ? firstOrder - DEFAULT_ORDER_STEP : DEFAULT_ORDER_STEP;
   }
 
-  async deleteTodo(file: TFile) {
+  async deleteTask(file: TFile) {
     await this.app.vault.delete(file);
     new Notice(`Deleted ${file.basename}`);
     this.refreshViews();
   }
 }
 
-class RookTodosBoardView extends ItemView {
-  plugin: RookTodosBoardPlugin;
+class RookKanbanBoardView extends ItemView {
+  plugin: RookKanbanBoardPlugin;
   root: Root | null = null;
 
-  constructor(leaf: WorkspaceLeaf, plugin: RookTodosBoardPlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: RookKanbanBoardPlugin) {
     super(leaf);
     this.plugin = plugin;
   }
 
   getViewType() {
-    return VIEW_TYPE_ROOK_TODOS;
+    return VIEW_TYPE_ROOK_KANBAN;
   }
 
   getDisplayText() {
-    return 'Rook Todos Board';
+    return 'Rook Kanban Board';
   }
 
   getIcon() {
@@ -394,21 +404,21 @@ class RookTodosBoardView extends ItemView {
   }
 }
 
-function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
-  const [todos, setTodos] = useState<TodoItem[]>([]);
+function BoardApp({ plugin }: { plugin: RookKanbanBoardPlugin }) {
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('all');
   const [dropTarget, setDropTarget] = useState<DropLocation | null>(null);
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
-  const [draft, setDraft] = useState<TodoDraft | null>(null);
+  const [draft, setDraft] = useState<TaskDraft | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      const items = await plugin.getTodos();
-      if (!cancelled) setTodos(items);
+      const items = await plugin.getTasks();
+      if (!cancelled) setTasks(items);
     };
 
     void load();
@@ -431,29 +441,29 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
     };
   }, [plugin]);
 
-  const allTags = useMemo(() => Array.from(new Set(todos.flatMap((todo) => todo.tags))).sort(), [todos]);
+  const allTags = useMemo(() => Array.from(new Set(tasks.flatMap((task) => task.tags))).sort(), [tasks]);
 
   const filtered = useMemo(() => {
     const lowerQuery = query.trim().toLowerCase();
-    return todos.filter((todo) => {
-      const matchesTag = tag === 'all' || todo.tags.includes(tag);
-      const haystack = [todo.title, todo.sourceIssue ?? '', todo.status, todo.tags.join(' '), todo.statusHistory.join(' ')]
+    return tasks.filter((task) => {
+      const matchesTag = tag === 'all' || task.tags.includes(tag);
+      const haystack = [task.title, task.sourceIssue ?? '', task.status, task.tags.join(' '), task.statusHistory.join(' ')]
         .join(' ')
         .toLowerCase();
       const matchesQuery = !lowerQuery || haystack.includes(lowerQuery);
       return matchesTag && matchesQuery;
     });
-  }, [todos, tag, query]);
+  }, [tasks, tag, query]);
 
   const byStatus = useMemo(() => {
-    const map = new Map<string, TodoItem[]>();
+    const map = new Map<string, TaskItem[]>();
     plugin.statuses.forEach((status) => map.set(status, []));
 
-    filtered.forEach((todo) => {
-      const key = map.has(todo.status) ? todo.status : plugin.statuses[0] ?? todo.status;
+    filtered.forEach((task) => {
+      const key = map.has(task.status) ? task.status : plugin.statuses[0] ?? task.status;
       const bucket = map.get(key) ?? [];
-      bucket.push(todo);
-      bucket.sort(compareTodos);
+      bucket.push(task);
+      bucket.sort(compareTasks);
       map.set(key, bucket);
     });
 
@@ -473,7 +483,7 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
     if (!draft) return;
     setIsCreating(true);
     try {
-      await plugin.createTodo({
+      await plugin.createTask({
         title: draft.title,
         description: draft.description,
         tags: draft.tags.split(',').map((value) => value.trim()).filter(Boolean),
@@ -490,7 +500,7 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
       <div className="rook-board-toolbar">
         <input
           className="rook-board-search"
-          placeholder="Search todos, tags, issue numbers, history…"
+          placeholder="Search tasks, tags, issue numbers, history…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -551,63 +561,63 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
                   const path = event.dataTransfer.getData('text/plain');
                   const file = plugin.app.vault.getAbstractFileByPath(path);
                   if (file instanceof TFile) {
-                    await plugin.moveTodo(file, location);
+                    await plugin.moveTask(file, location);
                   }
                 }}
               >
                 {items.length === 0 ? <div className="rook-board-empty">No cards</div> : null}
-                {items.map((todo, index) => {
+                {items.map((task, index) => {
                   const previousItem = items[index - 1];
                   const nextItem = items[index + 1];
                   const isDropBefore =
                     dropTarget?.status === status &&
-                    dropTarget.nextPath === todo.file.path &&
+                    dropTarget.nextPath === task.file.path &&
                     dropTarget.previousPath === previousItem?.file.path;
                   const isDropAfter =
                     dropTarget?.status === status &&
-                    dropTarget.previousPath === todo.file.path &&
+                    dropTarget.previousPath === task.file.path &&
                     dropTarget.nextPath === nextItem?.file.path;
-                  const isDragging = draggedPath === todo.file.path;
+                  const isDragging = draggedPath === task.file.path;
 
                   return (
                     <div
-                      key={todo.file.path}
-                      data-path={todo.file.path}
+                      key={task.file.path}
+                      data-path={task.file.path}
                       className={`rook-board-card-wrap ${isDropBefore ? 'is-drop-before' : ''} ${isDropAfter ? 'is-drop-after' : ''}`}
                     >
                       <div
                         className={`rook-board-card ${isDragging ? 'is-dragging-source' : ''}`}
                         draggable
                         onDragStart={(event) => {
-                          setDraggedPath(todo.file.path);
-                          event.dataTransfer.setData('text/plain', todo.file.path);
+                          setDraggedPath(task.file.path);
+                          event.dataTransfer.setData('text/plain', task.file.path);
                           event.dataTransfer.effectAllowed = 'move';
                         }}
                         onDragEnd={() => {
                           setDraggedPath(null);
                           setDropTarget(null);
                         }}
-                        onDoubleClick={() => void plugin.app.workspace.getLeaf(true).openFile(todo.file)}
+                        onDoubleClick={() => void plugin.app.workspace.getLeaf(true).openFile(task.file)}
                       >
                         <button
                           className="clickable-icon rook-board-card-delete"
-                          aria-label={`Delete ${todo.title}`}
+                          aria-label={`Delete ${task.title}`}
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            void plugin.deleteTodo(todo.file);
+                            void plugin.deleteTask(task.file);
                           }}
                         >
                           ×
                         </button>
-                        <div className="rook-board-card-title">{todo.title}</div>
+                        <div className="rook-board-card-title">{task.title}</div>
                         <div className="rook-board-meta rook-board-meta-top">
-                          {todo.sourceIssue ? <span className="rook-board-meta-pill">Issue #{todo.sourceIssue}</span> : null}
-                          <span className="rook-board-meta-pill">Created {todo.created ?? '—'}</span>
-                          <span className="rook-board-meta-pill">Touched {todo.touched ?? '—'}</span>
+                          {task.sourceIssue ? <span className="rook-board-meta-pill">Issue #{task.sourceIssue}</span> : null}
+                          <span className="rook-board-meta-pill">Created {task.created ?? '—'}</span>
+                          <span className="rook-board-meta-pill">Touched {task.touched ?? '—'}</span>
                         </div>
                         <div className="rook-board-tags">
-                          {todo.tags.map((value) => (
+                          {task.tags.map((value) => (
                             <span className="rook-board-tag" key={value}>
                               {value}
                             </span>
@@ -626,7 +636,7 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
       {draft ? (
         <div className="rook-board-overlay" onClick={closeCreateOverlay}>
           <div className="rook-board-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="rook-board-modal-title">New {humanizeStatus(draft.status)} to-do</div>
+            <div className="rook-board-modal-title">New {humanizeStatus(draft.status)} task</div>
             <label className="rook-board-field">
               <span>Title</span>
               <input
@@ -669,10 +679,10 @@ function BoardApp({ plugin }: { plugin: RookTodosBoardPlugin }) {
   );
 }
 
-class RookTodosSettingTab extends PluginSettingTab {
-  plugin: RookTodosBoardPlugin;
+class RookTasksSettingTab extends PluginSettingTab {
+  plugin: RookKanbanBoardPlugin;
 
-  constructor(app: App, plugin: RookTodosBoardPlugin) {
+  constructor(app: App, plugin: RookKanbanBoardPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -682,11 +692,11 @@ class RookTodosSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName('Todos folder')
-      .setDesc('Folder scanned for markdown todo notes.')
+      .setName('Tasks folder')
+      .setDesc('Folder scanned for markdown task notes.')
       .addText((text) =>
-        text.setPlaceholder('ToDos').setValue(this.plugin.settings.todosFolder).onChange(async (value) => {
-          this.plugin.settings.todosFolder = value.trim() || 'ToDos';
+        text.setPlaceholder('Tasks').setValue(this.plugin.settings.tasksFolder).onChange(async (value) => {
+          this.plugin.settings.tasksFolder = value.trim() || 'Tasks';
           await this.plugin.saveSettings();
         })
       );
@@ -731,7 +741,10 @@ function buildImplicitTags(file: TFile, tags: string[]): string[] {
 }
 
 function normalizeStatusValue(status: string): string {
-  return status.trim().toLowerCase().replace(/\s+/g, '_');
+  const normalized = status.trim().toLowerCase().replace(/\s+/g, '_');
+
+  // THIS IS FOR BACKWARDS COMPATIBILITY: display and store the former default status as backlog.
+  return normalized === 'todo' ? 'backlog' : normalized;
 }
 
 function normalizeOrder(input: unknown): number | undefined {
@@ -743,7 +756,7 @@ function normalizeOrder(input: unknown): number | undefined {
   return undefined;
 }
 
-function compareTodos(a: TodoItem, b: TodoItem): number {
+function compareTasks(a: TaskItem, b: TaskItem): number {
   const left = a.order ?? Number.MAX_SAFE_INTEGER;
   const right = b.order ?? Number.MAX_SAFE_INTEGER;
   if (left !== right) return left - right;

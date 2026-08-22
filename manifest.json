@@ -1,10 +1,10 @@
 {
-  "id": "obsidian-todos-extension",
-  "name": "Obsidian Todos Extension",
+  "id": "obsidian-kanban-board",
+  "name": "Obsidian Kanban Board",
   "version": "0.0.1",
   "minAppVersion": "1.6.0",
-  "description": "React-based kanban board for todo notes in the ToDos folder.",
+  "description": "React-based kanban board for task notes in the Tasks folder.",
   "author": "The Rook's Nest",
-  "authorUrl": "https://github.com/the-rooks-nest",
+  "authorUrl": "https://github.com/rookkeeper",
   "isDesktopOnly": false
 }
