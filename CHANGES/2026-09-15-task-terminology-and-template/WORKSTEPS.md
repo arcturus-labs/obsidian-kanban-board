@@ -6,7 +6,7 @@
 - [x] Create the change directory and lifecycle record
 - [x] Brainstorm to work, or bypass because the work is simple or obvious; do not mark complete until the developer confirms the direction — confirmed 2026-09-15 ("Go for it" + template specs)
 - [x] Record the agreed decision and TODO after the explicit decision gate
-- [ ] Prepare the implementation workspace after the planning commit
+- [x] Prepare the implementation workspace after the planning commit — worktree `../_worktrees/feature/task-template` on branch `feature/task-template`
 - [x] Implement and test — 29 tests green, build clean
 - [x] Mark compatibility surfaces — purely additive; no shims touched. Existing `ToDos/`-fallback and `todo`→`backlog` shims unchanged. Missing/unparseable template falls back to prior behavior (no new retained surface to mark).
 - [x] Maintain product and architecture documentation — README "Task template" section + skill-doc "Create a card" section (repo has no PRODUCT//AS-BUILT-ARCHITECTURE/ dirs)
