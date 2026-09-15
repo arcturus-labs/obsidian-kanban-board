@@ -6,7 +6,7 @@
 - [x] Create the change directory and lifecycle record
 - [x] Brainstorm to work, or bypass because the work is simple or obvious; do not mark complete until the developer confirms the direction — confirmed 2026-09-15 ("Go for it" + template specs)
 - [x] Record the agreed decision and TODO after the explicit decision gate
-- [ ] Prepare the implementation workspace after the planning commit
+- [x] Prepare the implementation workspace after the planning commit — worktree `../_worktrees/feature/task-template` on branch `feature/task-template`
 - [ ] Implement and test
 - [ ] Mark compatibility surfaces
 - [ ] Maintain product and architecture documentation
