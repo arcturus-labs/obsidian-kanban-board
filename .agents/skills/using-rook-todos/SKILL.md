@@ -147,6 +147,31 @@ obsidian vault="<Vault Name>" delete file="Card Title"
 
 Direct file deletion is also possible, but prefer vault-aware deletion when using Obsidian.
 
+### Create a card
+
+New cards can be based on an optional `_task_template.md` file in the tasks folder (a normal markdown note with optional frontmatter + body; it never appears on the board). The create dialog pre-fills its description box from the template body.
+
+When creating a card's file content directly, follow the same merge rule the plugin uses — template as the base, plugin values authoritative on managed keys:
+
+```markdown
+---
+type: task
+status: <column status>
+board_order: <below the current top card in that column>
+created: <today YYYY-MM-DD>
+touched: <today YYYY-MM-DD>
+source_issue: <template value or empty>
+tags: <union of template tags and requested tags>
+status_history:
+  - "<today> | created -> <column status>"
+<other template keys passed through untouched>
+---
+
+<dialog description, else template body, else a short default>
+```
+
+A template with no YAML section is valid — the whole file is the body. If no template exists, use the managed keys above with a short default body.
+
 ## Search guidance
 
 One of the most common agent tasks is: find the relevant set of todo cards, then operate on them.
