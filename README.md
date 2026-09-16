@@ -47,6 +47,33 @@ status: backlog
 4. Drag cards between columns to update status
 5. Use the `+` button on each column to create new tasks
 
+## Task template
+
+To customize what new tasks look like, create a `_task_template.md` file in your tasks folder. It is a normal markdown note with optional YAML frontmatter plus a body, and it never appears on the board itself. The create dialog's description box is pre-filled with the template body, and creating a task with no description uses the template body as-is. A template with no YAML section is valid — the whole file becomes the starting body.
+
+Example `_task_template.md`:
+
+```markdown
+---
+priority: medium
+tags:
+  - triage
+---
+
+## Outcome
+
+## Next step
+```
+
+When a task is created, your template is the base and the plugin fills in what the board needs:
+
+- **Plugin-managed (always set by the plugin):** `type`, `status` (the column you created in), `board_order` (top of the column), `created`, `touched`, `status_history` (your template's history is kept and a `created -> <status>` entry is appended).
+- **Merged:** `tags` combine the template's tags with any tags typed in the create dialog; `source_issue` keeps your template's value when present.
+- **Passed through untouched:** any other frontmatter keys (like `priority` above).
+- **Body:** the description typed in the dialog wins; otherwise the template body; otherwise a small builtin default.
+
+If the template file is missing, creation works exactly as before. If its YAML is invalid, the plugin notifies you and falls back to defaults so creation never fails.
+
 ## Development
 
 ```bash

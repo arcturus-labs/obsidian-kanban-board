@@ -1,6 +1,12 @@
 import { App, ItemView, Notice, Plugin, PluginSettingTab, Setting, TFile, WorkspaceLeaf, normalizePath, parseYaml } from 'obsidian';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
+import {
+  TASK_TEMPLATE_FILENAME,
+  buildTaskFileContent,
+  parseTaskTemplate,
+  type ParsedTaskTemplate
+} from './taskTemplate';
 
 const VIEW_TYPE_ROOK_KANBAN = 'rook-kanban-board-view';
 const DEFAULT_STATUSES = ['backlog', 'in_progress', 'done'] as const;
@@ -57,7 +63,7 @@ const STATUS_CONFIG_FILE = 'status-config.json';
 const DEFAULT_ORDER_STEP = 1000;
 
 export default class RookKanbanBoardPlugin extends Plugin {
-  settings: PluginSettings = DEFAULT_SETTINGS;
+  settings: PluginSettings = { ...DEFAULT_SETTINGS };
   statuses: string[] = [...DEFAULT_STATUSES];
 
   async onload() {
@@ -341,15 +347,47 @@ export default class RookKanbanBoardPlugin extends Plugin {
     }
 
     const order = await this.getFirstOrderForStatus(status);
-    const today = todayString();
-    const tags = normalizeCreateTags(input.tags);
-    const body = input.description?.trim() ? input.description.trim() : '- Define the outcome.\n- Add the next concrete step.';
-    const tagsSection = tags.length ? `tags:\n${tags.map((tag) => `  - ${tag}`).join('\n')}` : 'tags: []';
-    const content = `---\ntype: task\nstatus: ${status}\nboard_order: ${order}\ncreated: ${today}\ntouched: ${today}\nsource_issue:\n${tagsSection}\nstatus_history:\n  - \"${today} | created -> ${status}\"\n---\n\n${body}\n`;
+    const template = await this.readTaskTemplate();
+    const content = buildTaskFileContent(template, {
+      status,
+      order,
+      today: todayString(),
+      modalTags: normalizeCreateTags(input.tags),
+      modalDescription: input.description
+    });
 
     await this.app.vault.create(path, content);
     new Notice(`Created ${safeTitle}`);
     this.refreshViews();
+  }
+
+  getTaskTemplatePath(): string {
+    return `${this.getTasksFolder().replace(/\/$/, '')}/${TASK_TEMPLATE_FILENAME}`;
+  }
+
+  async readTaskTemplate(): Promise<ParsedTaskTemplate | null> {
+    const path = this.getTaskTemplatePath();
+    // NOTE: getAbstractFileByPath may miss newly created files if the vault
+    // index is stale, so attempt the read whenever the path looks plausible
+    // and treat "not found" the same as "no template".
+    let raw: string;
+    try {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      raw = await this.app.vault.read((file ?? { path }) as TFile);
+    } catch {
+      return null;
+    }
+
+    try {
+      return parseTaskTemplate(raw);
+    } catch {
+      new Notice(`Task template ${TASK_TEMPLATE_FILENAME} has invalid frontmatter. Using defaults.`);
+      return null;
+    }
+  }
+
+  async getTaskTemplateBody(): Promise<string> {
+    return (await this.readTaskTemplate())?.body ?? '';
   }
 
   async getFirstOrderForStatus(status: string) {
@@ -472,6 +510,10 @@ function BoardApp({ plugin }: { plugin: RookKanbanBoardPlugin }) {
 
   const openCreateOverlay = (status: string) => {
     setDraft({ title: '', description: '', tags: '', status });
+    void plugin.getTaskTemplateBody().then((body) => {
+      if (!body) return;
+      setDraft((current) => (current && !current.description ? { ...current, description: body } : current));
+    });
   };
 
   const closeCreateOverlay = () => {

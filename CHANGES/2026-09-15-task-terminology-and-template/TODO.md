@@ -20,13 +20,13 @@ New-task content is hardcoded in `createTask()` (`src/main.tsx`): a fixed YAML b
 
 ## Work checklist
 
-- [ ] Set up vitest + test script (new infra, no tests for existing code)
-- [ ] Write RED tests for template parsing (YAML + body, no-YAML body, empty/missing)
-- [ ] Write RED tests for merge semantics (plugin-wins keys, custom passthrough, tags union, body fallback chain)
-- [ ] Implement template loading + merge in `src/` (extract pure helpers for testability)
-- [ ] Pre-fill create dialog description from template body
-- [ ] Verify RED→GREEN (tests fail before impl, pass after)
-- [ ] `npm run build` + typecheck clean
-- [ ] Document `_task_template.md` with example in README + skill doc
+- [x] Set up vitest + test script (new infra, no tests for existing code)
+- [x] Write RED tests for template parsing (YAML + body, no-YAML body, empty/missing)
+- [x] Write RED tests for merge semantics (plugin-wins keys, custom passthrough, tags union, body fallback chain)
+- [x] Implement template loading + merge in `src/` (extract pure helpers for testability)
+- [x] Pre-fill create dialog description from template body
+- [x] Verify RED→GREEN (tests fail before impl, pass after)
+- [x] `npm run build` + typecheck clean
+- [x] Document `_task_template.md` with example in README + skill doc
 - [ ] Manual vault smoke test (template present/absent, dialog pre-fill, bad YAML notice)
 - [ ] Commit planning record, implement on worktree/branch, PR, merge

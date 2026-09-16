@@ -7,10 +7,10 @@
 - [x] Brainstorm to work, or bypass because the work is simple or obvious; do not mark complete until the developer confirms the direction — confirmed 2026-09-15 ("Go for it" + template specs)
 - [x] Record the agreed decision and TODO after the explicit decision gate
 - [x] Prepare the implementation workspace after the planning commit — worktree `../_worktrees/feature/task-template` on branch `feature/task-template`
-- [ ] Implement and test
-- [ ] Mark compatibility surfaces
-- [ ] Maintain product and architecture documentation
-- [ ] Run final validation
+- [x] Implement and test — 29 tests green, build clean
+- [x] Mark compatibility surfaces — purely additive; no shims touched. Existing `ToDos/`-fallback and `todo`→`backlog` shims unchanged. Missing/unparseable template falls back to prior behavior (no new retained surface to mark).
+- [x] Maintain product and architecture documentation — README "Task template" section + skill-doc "Create a card" section (repo has no PRODUCT//AS-BUILT-ARCHITECTURE/ dirs)
+- [x] Run final validation — `npm test` 29/29, `npm run build` clean, `tsc` shows only the pre-existing `node` types error also present on main
 - [ ] Synchronize with main before submitting
 - [ ] Open and validate the PR
 - [ ] Merge with approval
