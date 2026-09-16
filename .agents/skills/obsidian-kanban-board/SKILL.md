@@ -5,6 +5,8 @@ description: "Use for working with todo-card notes in an Obsidian vault that are
 
 # Obsidian Todo Board
 
+This skill targets the Arcturus Labs Obsidian Kanban Board https://github.com/arcturus-labs/obsidian-kanban-board application.
+
 Use this skill when the user is working with a todo board in Obsidian where each card is backed by a markdown note.
 
 The human usually interacts through the Obsidian board UI, while the agent can interact by opening notes, searching notes, and editing the underlying markdown/frontmatter.
