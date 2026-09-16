@@ -11,7 +11,7 @@
 - [x] Mark compatibility surfaces — purely additive; no shims touched. Existing `ToDos/`-fallback and `todo`→`backlog` shims unchanged. Missing/unparseable template falls back to prior behavior (no new retained surface to mark).
 - [x] Maintain product and architecture documentation — README "Task template" section + skill-doc "Create a card" section (repo has no PRODUCT//AS-BUILT-ARCHITECTURE/ dirs)
 - [x] Run final validation — `npm test` 29/29, `npm run build` clean, `tsc` shows only the pre-existing `node` types error also present on main
-- [ ] Synchronize with main before submitting
-- [ ] Open and validate the PR
-- [ ] Merge with approval
-- [ ] Record outcomes and clean up
+- [x] Synchronize with main before submitting
+- [x] Open and validate the PR — #1 merged as 42a3ccc (no CI on repo; tests/build green, merge state clean)
+- [x] Merge with approval — explicit developer approval, merge commit
+- [x] Record outcomes and clean up
