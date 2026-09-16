@@ -106,6 +106,13 @@ describe('template-aware createTask', () => {
     expect(Notice.messages.some((message) => /task template/i.test(message))).toBe(true);
   });
 
+  it('reads the template even when the vault index misses it', async () => {
+    const parts = makeApp(makeVault([{ path: 'Tasks/_task_template.md', content: 'Template body\n' }]), makeMetadataCache());
+    parts.vault.getAbstractFileByPath = vi.fn(() => null);
+    const plugin = makePlugin(parts);
+    await expect(plugin.getTaskTemplateBody()).resolves.toBe('Template body');
+  });
+
   it('looks up the template in the configured tasks folder', async () => {
     const parts = makeApp(makeVault([{ path: 'Work/_task_template.md', content: 'Work body\n' }]), makeMetadataCache());
     const plugin = makePlugin(parts);

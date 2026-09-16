@@ -367,10 +367,19 @@ export default class RookKanbanBoardPlugin extends Plugin {
 
   async readTaskTemplate(): Promise<ParsedTaskTemplate | null> {
     const path = this.getTaskTemplatePath();
-    if (!this.app.vault.getAbstractFileByPath(path)) return null;
+    // NOTE: getAbstractFileByPath may miss newly created files if the vault
+    // index is stale, so attempt the read whenever the path looks plausible
+    // and treat "not found" the same as "no template".
+    let raw: string;
+    try {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      raw = await this.app.vault.read((file ?? { path }) as TFile);
+    } catch {
+      return null;
+    }
 
     try {
-      return parseTaskTemplate(await this.app.vault.read({ path } as TFile));
+      return parseTaskTemplate(raw);
     } catch {
       new Notice(`Task template ${TASK_TEMPLATE_FILENAME} has invalid frontmatter. Using defaults.`);
       return null;
