@@ -1,7 +1,9 @@
 {
   "statuses": [
+    "triage",
     "backlog",
     "in_progress",
+    "retrospective",
     "done"
   ]
 }
