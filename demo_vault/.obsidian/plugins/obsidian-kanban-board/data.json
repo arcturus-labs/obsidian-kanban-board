@@ -1,0 +1,11 @@
+{
+  "tasksFolder": "TASKS/KANBAN",
+  "statuses": [
+    "triage",
+    "backlog",
+    "in_progress",
+    "blocked",
+    "retrospective",
+    "done"
+  ]
+}

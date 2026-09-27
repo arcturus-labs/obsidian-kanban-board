@@ -1,1 +1,13 @@
-- [ ] If I am inside of a page that corresponds to a to-do, then give it buttons that allow me to move it to a different column.
+- [x] [[TASKS/KANBAN/Document current architecture|Let's flesh out the architecture and stick it in the architecture directory]]
+- [ ] Support configurable task directories (rather than relying on a special `ToDos` path or `type: task`); let users combine configured directories or switch between them via a selector, and distinguish cards by source path or color. Consider `#task` as an alternative task marker.
+  - [ ] Keep task discovery fast in large directories containing a mix of tasks and other notes.
+- [ ] Reduce Obsidian-specific assumptions so task notes and the task-management skill can be used without Obsidian - e.g. as a web app. (And the web app can pull in multiple tasks directories optionally)
+- [ ] UI: Allow dragging cards to off-screen columns and reordering them while scrolling.
+- [ ] UI: If I am inside of a page that corresponds to a to-do, give it buttons to move it to a different column.
+- [ ] Support subtasks and task dependencies (including “blocked by” relationships) so agents can identify what is ready and what to do next.
+- [ ] Animate agent actions such as moving and renaming cards.
+- [ ] Let users select cards or text and refer to the selection as “this” or “these”.
+- [ ] Detect and surface which tasks users edited and what they changed.
+- [ ] Make the task skill discoverable by Rook and replaceable by the version in this repo.
+- [ ] Clarify the core value proposition for Obsidian users. Package the app/extension so it is easy to install and try. Create prominent demo material showing how it works and why it is useful.
+- [ ] Add due dates to TODOs
