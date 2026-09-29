@@ -41,3 +41,6 @@
 - Use `demo_vault/` to exercise the plugin in Obsidian. Build the repo, open `demo_vault` as a vault, enable **Obsidian Kanban Board** if needed, then open the board via the ribbon or command. The vault includes sample task notes and a configured task folder.
 - For UI or task workflow changes, independently exercise representative interactions in the running plugin and verify the Markdown/frontmatter result on disk. Capture the app window for visual changes when practical.
 - If Obsidian cannot be launched or a relevant interaction cannot be independently verified, report that limitation; do not present tests as a substitute.
+
+## When the orchestrator completes long tasks
+If the orchestrator performs any task, including planning tasks that take longer than 10 tool calls in series, then if on the mac, use the `say` command to update the user. `say "<sentence about task status or the work just completed>`
